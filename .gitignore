@@ -1,5 +1,5 @@
 *.out
-*.txt
+log.txt
 localAlignment
 test*
 .vscode/

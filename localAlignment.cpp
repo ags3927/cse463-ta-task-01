@@ -29,6 +29,9 @@ void printvvd(vvd v)
 
 int findIndexOfScoringCharacter(char c)
 {
+    if (c == '-')
+        return scoringCharacters.length();
+
     for (int i = 0; i < scoringCharacters.length(); i++)
     {
         if (scoringCharacters[i] == c)
@@ -37,6 +40,17 @@ int findIndexOfScoringCharacter(char c)
         }
     }
     return -1;
+}
+
+double computeAlignmentScoreFromStrings(string A, string B)
+{
+    double cost = 0;
+    for (int i = 0; i < A.length(); i++)
+    {
+        cost += scoringMatrix[findIndexOfScoringCharacter(A[i])][findIndexOfScoringCharacter(B[i])];
+    }
+    // cout << "Cost from alignment = " << cost << endl;
+    return cost;
 }
 
 void init()
@@ -86,7 +100,7 @@ int argMax(vd scoreL, vd scoreR)
     return ymid;
 }
 
-vd nwScore(string X, string Y, bool isLocalAlignment)
+vd nwScore(string X, string Y)
 {
     int ylen = Y.length();
     int xlen = X.length();
@@ -113,7 +127,7 @@ vd nwScore(string X, string Y, bool isLocalAlignment)
             double scoreIns = score[1][j - 1] + scoringMatrix[scoringMatrixSize - 1][findIndexOfScoringCharacter(Y[j - 1])];
 
             // score[1][j] = isLocalAlignment ? max(max(scoreSub, max(scoreDel, scoreIns)), 0.0) : max(scoreSub, max(scoreDel, scoreIns));
-            score[i][j] = max(scoreSub, max(scoreDel, scoreIns));
+            score[1][j] = max(scoreSub, max(scoreDel, scoreIns));
 
             score[0] = score[1];
         }
@@ -240,115 +254,65 @@ pss hirschberg(string X, string Y)
     return pss(Z, W);
 }
 
-void findLocalAlignment()
+pair<pss, pii> findLocalAlignment()
 {
-    /*      
-                         _ 0
-                        |_ s[i-1][j-1] + del(v[i], w[j])
-        s[i][j] =   max{|_ s[i-1][j] + del(v[i], -)
-                        |_ s[i][j-1] + del(-, w[j])
-    */
-    int gridSize = firstString.length();
-
-    double cornerCharacter, current;
-
-    vector<int> scores = vector<int>(firstString.length());
-
-    int firstStringIndex, secondStringIndex;
+    double maxScore = -MAXFLOAT;
+    pss bestAlignment;
+    pii startIndices;
 
     for (int i = 0; i < firstString.length(); i++)
     {
         for (int j = 0; j < secondString.length(); j++)
         {
-            char firstChar;
-            char secondChar;
-            double maxScore = INT_MIN;
-            firstStringIndex = scoringCharacters.find(firstString[i]);
-            secondStringIndex = scoringCharacters.find(secondString[j]);
-
-            if (i == 0 && j == 0)
+            for (int p = i; p < firstString.length(); p++)
             {
-                bool flag = false;
-
-                if (scoringMatrix[firstStringIndex][scoringMatrixSize - 1] >= maxScore)
+                for (int q = j; q < secondString.length(); q++)
                 {
-                    maxScore = scoringMatrix[firstStringIndex][scoringMatrixSize - 1];
-                    firstChar = firstString[i];
-                    secondChar = '-';
-                    j--;
-                    flag = true;
-                }
-
-                if (scoringMatrix[scoringMatrixSize - 1][secondStringIndex] >= maxScore)
-                {
-                    maxScore = scoringMatrix[scoringMatrixSize - 1][secondStringIndex];
-                    firstChar = '-';
-                    secondChar = secondString[j];
-                    i--;
-                    flag = true;
-                }
-
-                if (scoringMatrix[firstStringIndex][secondStringIndex] >= maxScore)
-                {
-                    maxScore = scoringMatrix[firstStringIndex][secondStringIndex];
-                    firstChar = firstString[i];
-                    secondChar = secondString[j];
-                    flag = true;
-                }
-            }
-            else if (i == 0)
-            {
-                bool flag = false;
-
-                if (scoringMatrix[firstStringIndex][scoringMatrixSize - 1] >= maxScore)
-                {
-                    maxScore = scoringMatrix[firstStringIndex][scoringMatrixSize - 1];
-                    firstChar = firstString[i];
-                    secondChar = '-';
-                    j--;
-                    flag = true;
-                }
-
-                if (scoringMatrix[scoringMatrixSize - 1][secondStringIndex] >= maxScore)
-                {
-                    maxScore = scoringMatrix[scoringMatrixSize - 1][secondStringIndex];
-                    firstChar = '-';
-                    secondChar = secondString[j];
-                    i--;
-                    flag = true;
-                }
-
-                if (scoringMatrix[firstStringIndex][secondStringIndex] >= maxScore)
-                {
-                    maxScore = scoringMatrix[firstStringIndex][secondStringIndex];
-                    firstChar = firstString[i];
-                    secondChar = secondString[j];
-                    flag = true;
+                    pss result = hirschberg(firstString.substr(i, p - i + 1), secondString.substr(j, q - j + 1));
+                    double score = computeAlignmentScoreFromStrings(result.first, result.second);
+                    if (score > maxScore) {
+                        maxScore = score;
+                        bestAlignment = result;
+                        startIndices.first = i;
+                        startIndices.second = j;
+                    }
                 }
             }
         }
     }
+
+    return pair<pss, pii>(bestAlignment, startIndices);
 }
 
 int main()
 {
     init();
 
-    // string x = "AG", y = "TACG";
+    // string x = "ATA--GCA", y = "ATATTGC-";
 
-    // vd scores = nwScore(x, y);
+    // double score = computeAlignmentScoreFromStrings(x, y);
 
-    // for (int i = 0; i < scores.size(); i++)
-    // {
-    //     cout << scores[i] << ' ';
-    // }
+    // cout << score << endl;
 
-    // cout << endl;
+    pss globalAlignment = hirschberg(firstString, secondString);
 
-    pss result = hirschberg(firstString, secondString);
+    cout << "Global Alignment:\n";
 
-    cout << (swapped ? result.second : result.first) << endl;
-    cout << (swapped ? result.first : result.second) << endl;
+    cout << (swapped ? globalAlignment.second: globalAlignment.first) << endl;
+    cout << (swapped ? globalAlignment.first : globalAlignment.second) << endl;
+
+    pair<pss, pii> result = findLocalAlignment();
+
+    pss alignedStrings = result.first;
+    pii startIndices = result.second;
+
+    cout << "\nLocal Alignment:\n";
+
+    cout << (swapped ? alignedStrings.second : alignedStrings.first) << endl;
+    cout << (swapped ? alignedStrings.first : alignedStrings.second) << endl;
+
+    cout << "Alignment starts in first string at position (1-indexed) = " << (startIndices.first + 1) << endl;
+    cout << "Alignment starts in second string at position (1-indexed) = " << (startIndices.second + 1) << endl;
 
     return 0;
 }
