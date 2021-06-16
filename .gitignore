@@ -1,0 +1,5 @@
+*.out
+*.txt
+localAlignment
+test*
+.vscode/
